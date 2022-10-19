@@ -121,27 +121,27 @@ const Stake = () => {
       })
   }
 
-  let content
+  const content = () => {
+    return loading ? (
+      <p id='loader' className='text-center'>
+        Loading...
+      </p>
+    ) : (
+      <Main
+        daiTokenBalance={daiTokenBalance}
+        dappTokenBalance={dappTokenBalance}
+        stakingBalance={stakingBalance}
+        stakeTokens={stakeTokens}
+        unstakeTokens={unstakeTokens}
+        issueTokens={issueTokens}
+      />
+    )
+  }
 
   return (
     <div>
       {/* <Navbar account={this.state.account} /> */}
-      {loading
-        ? (content = (
-            <p id='loader' className='text-center'>
-              Loading...
-            </p>
-          ))
-        : (content = (
-            <Main
-              daiTokenBalance={daiTokenBalance}
-              dappTokenBalance={dappTokenBalance}
-              stakingBalance={stakingBalance}
-              stakeTokens={stakeTokens}
-              unstakeTokens={unstakeTokens}
-              issueTokens={issueTokens}
-            />
-          ))}
+
       <div className='container-fluid mt-5'>
         <div className='row'>
           <main
@@ -149,7 +149,7 @@ const Stake = () => {
             className='col-lg-12 ml-auto mr-auto'
             style={{ maxWidth: "600px" }}
           >
-            <div className='content mr-auto ml-auto'>{content}</div>
+            <div className='content mr-auto ml-auto'>{content()}</div>
           </main>
         </div>
       </div>
