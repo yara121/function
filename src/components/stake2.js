@@ -1,42 +1,37 @@
-import React, { Component, useState, useEffect } from "react"
-
+import React, { Component } from "react"
 import Web3 from "web3"
 import DaiToken from "abis/DaiToken.json"
 import DappToken from "abis/DappToken.json"
 import TokenFarm from "abis/TokenFarm.json"
 
 import Main from "components/Main"
+import { connect } from "react-redux"
+import { add } from "../components/addressSlice"
 
-const Stake = () => {
-  const [account, setAccount] = useState("0x0")
-  const [daiToken, setDaiToken] = useState({})
-  const [dappToken, setDappToken] = useState({})
-  const [tokenFarm, setTokenFarm] = useState({})
-  const [daiTokenBalance, setDaiTokenBalance] = useState("0")
-  const [dappTokenBalance, setDappTokenBalance] = useState("0")
-  const [stakingBalance, setStakingBalance] = useState("0")
-  const [loading, setLoading] = useState(true)
+class Stake extends Component {
+  async componentWillMount() {
+    await this.loadWeb3()
+    await this.loadBlockchainData()
+  }
 
-  useEffect(() => {
-    loadWeb3()
-    loadBlockchainData()
-  }, [])
-
-  const loadBlockchainData = async () => {
+  async loadBlockchainData() {
     const web3 = window.web3
 
     const accounts = await web3.eth.getAccounts()
-    setAccount({ account: accounts[0] })
+    this.setState({ account: accounts[0] })
 
+    this.props.add(accounts[0])
     const networkId = await web3.eth.net.getId()
 
     // Load DaiToken
     const daiTokenData = DaiToken.networks[networkId]
     if (daiTokenData) {
       const daiToken = new web3.eth.Contract(DaiToken.abi, daiTokenData.address)
-      setDaiToken({ daiToken })
-      let daiTokenBalance = await daiToken.methods.balanceOf(account).call()
-      setDaiTokenBalance({ daiTokenBalance: daiTokenBalance.toString() })
+      this.setState({ daiToken })
+      let daiTokenBalance = await daiToken.methods
+        .balanceOf(this.state.account)
+        .call()
+      this.setState({ daiTokenBalance: daiTokenBalance.toString() })
     } else {
       window.alert("DaiToken contract not deployed to detected network.")
     }
@@ -48,9 +43,11 @@ const Stake = () => {
         DappToken.abi,
         dappTokenData.address
       )
-      setDappToken({ dappToken })
-      let dappTokenBalance = await dappToken.methods.balanceOf(account).call()
-      setDappTokenBalance({ dappTokenBalance: dappTokenBalance.toString() })
+      this.setState({ dappToken })
+      let dappTokenBalance = await dappToken.methods
+        .balanceOf(this.state.account)
+        .call()
+      this.setState({ dappTokenBalance: dappTokenBalance.toString() })
     } else {
       window.alert("DappToken contract not deployed to detected network.")
     }
@@ -62,19 +59,19 @@ const Stake = () => {
         TokenFarm.abi,
         tokenFarmData.address
       )
-      setTokenFarm({ tokenFarm })
+      this.setState({ tokenFarm })
       let stakingBalance = await tokenFarm.methods
-        .stakingBalance(account)
+        .stakingBalance(this.state.account)
         .call()
-      setStakingBalance({ stakingBalance: stakingBalance.toString() })
+      this.setState({ stakingBalance: stakingBalance.toString() })
     } else {
       window.alert("TokenFarm contract not deployed to detected network.")
     }
 
-    setLoading({ loading: false })
+    this.setState({ loading: false })
   }
 
-  const loadWeb3 = async () => {
+  async loadWeb3() {
     if (window.ethereum) {
       window.web3 = new Web3(window.ethereum)
       await window.ethereum.enable()
@@ -87,74 +84,96 @@ const Stake = () => {
     }
   }
 
-  const stakeTokens = (amount) => {
-    setLoading({ loading: true })
-    daiToken.methods
-      .approve(tokenFarm._address, amount)
-      .send({ from: account })
+  stakeTokens = (amount) => {
+    this.setState({ loading: true })
+    this.state.daiToken.methods
+      .approve(this.state.tokenFarm._address, amount)
+      .send({ from: this.state.account })
       .on("transactionHash", (hash) => {
-        tokenFarm.methods
+        this.state.tokenFarm.methods
           .stakeTokens(amount)
-          .send({ from: account })
+          .send({ from: this.state.account })
           .on("transactionHash", (hash) => {
-            setLoading({ loading: false })
+            this.setState({ loading: false })
           })
       })
   }
 
-  const unstakeTokens = (amount) => {
-    setLoading({ loading: true })
-    tokenFarm.methods
+  unstakeTokens = (amount) => {
+    this.setState({ loading: true })
+    this.state.tokenFarm.methods
       .unstakeTokens()
-      .send({ from: account })
+      .send({ from: this.state.account })
       .on("transactionHash", (hash) => {
-        setLoading({ loading: false })
+        this.setState({ loading: false })
       })
   }
-  const issueTokens = (amount) => {
-    setLoading({ loading: true })
-    tokenFarm.methods
+  issueTokens = (amount) => {
+    this.setState({ loading: true })
+    this.state.tokenFarm.methods
       .issueTokens()
       .send({ from: this.state.account })
       .on("transactionHash", (hash) => {
-        setLoading({ loading: false })
+        this.setState({ loading: false })
       })
   }
 
-  const content = () => {
-    return loading ? (
-      <p id='loader' className='text-center'>
-        Loading...
-      </p>
-    ) : (
-      <Main
-        daiTokenBalance={daiTokenBalance}
-        dappTokenBalance={dappTokenBalance}
-        stakingBalance={stakingBalance}
-        stakeTokens={stakeTokens}
-        unstakeTokens={unstakeTokens}
-        issueTokens={issueTokens}
-      />
-    )
+  constructor(props) {
+    super(props)
+    this.state = {
+      account: "0x0",
+      daiToken: {},
+      dappToken: {},
+      tokenFarm: {},
+      daiTokenBalance: "0",
+      dappTokenBalance: "0",
+      stakingBalance: "0",
+      loading: true,
+    }
   }
 
-  return (
-    <div>
-      {/* <Navbar account={this.state.account} /> */}
+  render() {
+    let content
+    if (this.state.loading) {
+      content = (
+        <p id='loader' className='text-center'>
+          Loading...
+        </p>
+      )
+    } else {
+      content = (
+        <Main
+          daiTokenBalance={this.state.daiTokenBalance}
+          dappTokenBalance={this.state.dappTokenBalance}
+          stakingBalance={this.state.stakingBalance}
+          stakeTokens={this.stakeTokens}
+          unstakeTokens={this.unstakeTokens}
+          issueTokens={this.issueTokens}
+        />
+      )
+    }
 
-      <div className='container-fluid mt-5'>
-        <div className='row'>
-          <main
-            role='main'
-            className='col-lg-12 ml-auto mr-auto'
-            style={{ maxWidth: "600px" }}
-          >
-            <div className='content mr-auto ml-auto'>{content()}</div>
-          </main>
+    return (
+      <div>
+        {/* <Navbar account={this.state.account} /> */}
+        <div className='container-fluid mt-5'>
+          <div className='row'>
+            <main
+              role='main'
+              className='col-lg-12 ml-auto mr-auto'
+              style={{ maxWidth: "600px" }}
+            >
+              <div className='content mr-auto ml-auto'>{content}</div>
+            </main>
+          </div>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 }
+const mapStateToProps = (state) => ({
+  state: state.address.value,
+})
+const mapDispatchToProps = { add }
 
-export default Stake
+export default connect(mapStateToProps, mapDispatchToProps)(Stake)
